@@ -1,5 +1,7 @@
 DROP PROCEDURE IF EXISTS RecommendFromSimilar;
 DROP PROCEDURE IF EXISTS RecommendFromFriends;
+DROP PROCEDURE IF EXISTS RecommendFromAuthor;
+DROP PROCEDURE IF EXISTS RecommendFromPublisher;
 
 -- Recommend books based on similar users.
 DELIMITER //
@@ -71,7 +73,6 @@ CREATE PROCEDURE RecommendFromSimilar (IN usr VARCHAR(30), IN minRating INT, IN 
 END //
 DELIMITER ;
 
--- Recommend books from same author / publisher
 -- Recommend books from friends.
 DELIMITER //
 CREATE PROCEDURE RecommendFromFriends (IN usr VARCHAR(30), IN minRating INT) 
@@ -110,11 +111,11 @@ BEGIN
         Title VARCHAR(4096),
         Author VARCHAR(255),
         PublisherName VARCHAR(8192),
-        TotalRating REAL -- check if int or real
+        Score INT
     );
     
     INSERT INTO FriendRatings ( -- ask about the min thing
-        SELECT ISBN, MIN(b.Title) AS Title, MIN(b.Author) AS Author, MIN(PublisherName) AS PublisherName, SUM(Rating) as TotalRating
+        SELECT ISBN, MIN(b.Title) AS Title, MIN(b.Author) AS Author, MIN(PublisherName) AS PublisherName, SUM(Rating) as Score
         FROM (Books b NATURAL JOIN Ratings r NATURAL JOIN Publishers p)
         WHERE (r.Rating >= minRating) AND EXISTS(
             SELECT GivesRecs 
@@ -126,10 +127,136 @@ BEGIN
             WHERE br.ISBN = b.ISBN
         )
         GROUP BY ISBN
-        ORDER BY TotalRating DESC
+        ORDER BY Score DESC
     );
 
     SELECT * FROM FriendRatings LIMIT 30;
+
+END //
+DELIMITER ;
+
+-- Recommend books from same author
+DELIMITER //
+CREATE PROCEDURE RecommendFromAuthor (IN usr VARCHAR(30), IN minRating INT) 
+BEGIN
+    DROP TABLE IF EXISTS UserBooksRead;
+    DROP TABLE IF EXISTS Authors;
+    DROP TABLE IF EXISTS AuthorRatings;
+
+    -- List of all books the user read
+    CREATE TABLE UserBooksRead (
+        ISBN CHAR(10) PRIMARY KEY
+    );
+
+    INSERT INTO UserBooksRead (
+        SELECT ISBN
+        FROM Ratings
+        WHERE Username = usr
+    );
+
+    -- Get all of the user's friends
+    CREATE TABLE Authors (
+        Author VARCHAR(255)
+    );
+
+    INSERT INTO Authors (
+        SELECT DISTINCT Author
+        FROM Books b
+        WHERE EXISTS (
+            SELECT *
+            FROM UserBooksRead ub
+            WHERE ub.ISBN = b.ISBN
+        )
+    );
+
+    CREATE TABLE AuthorRatings (
+        ISBN CHAR(10) PRIMARY KEY,
+        Title VARCHAR(4096),
+        Author VARCHAR(255),
+        PublisherName VARCHAR(8192),
+        Score INT
+    );
+ 
+    INSERT INTO AuthorRatings (
+        SELECT ISBN, MIN(b.Title) AS Title, MIN(b.Author) AS Author, MIN(PublisherName) AS PublisherName, 1 as Score
+        FROM (Books b NATURAL JOIN Ratings r NATURAL JOIN Publishers p)
+        WHERE (r.Rating >= minRating) AND EXISTS(
+            SELECT * 
+            FROM Authors a
+            WHERE a.Author = b.Author
+        ) AND NOT EXISTS(
+            SELECT ISBN
+            FROM UserBooksRead br
+            WHERE br.ISBN = b.ISBN
+        )
+        GROUP BY ISBN
+        ORDER BY Score DESC
+    );
+
+    SELECT * FROM AuthorRatings LIMIT 30;
+
+END //
+DELIMITER ;
+
+-- Recommend from same publisher
+DELIMITER //
+CREATE PROCEDURE RecommendFromPublisher (IN usr VARCHAR(30), IN minRating INT) 
+BEGIN
+    DROP TABLE IF EXISTS UserBooksRead;
+    DROP TABLE IF EXISTS Publishers_Proc;
+    DROP TABLE IF EXISTS PublisherRatings;
+
+    -- List of all books the user read
+    CREATE TABLE UserBooksRead (
+        ISBN CHAR(10) PRIMARY KEY
+    );
+
+    INSERT INTO UserBooksRead (
+        SELECT ISBN
+        FROM Ratings
+        WHERE Username = usr
+    );
+
+    -- Get all of the user's friends
+    CREATE TABLE Publishers_Proc (
+        PublisherId INT
+    );
+
+    INSERT INTO Publishers_Proc (
+        SELECT DISTINCT PublisherId
+        FROM Books b
+        WHERE EXISTS (
+            SELECT *
+            FROM UserBooksRead ub
+            WHERE ub.ISBN = b.ISBN
+        )
+    );
+
+    CREATE TABLE PublisherRatings (
+        ISBN CHAR(10) PRIMARY KEY,
+        Title VARCHAR(4096),
+        Author VARCHAR(255),
+        PublisherName VARCHAR(8192),
+        TotalRating INT -- check if int or real
+    );
+ 
+    INSERT INTO PublisherRatings (
+        SELECT ISBN, MIN(b.Title) AS Title, MIN(b.Author) AS Author, MIN(PublisherName) AS PublisherName, 1 as Score
+        FROM (Books b NATURAL JOIN Ratings r NATURAL JOIN Publishers p)
+        WHERE (r.Rating >= minRating) AND EXISTS(
+            SELECT * 
+            FROM Publishers_Proc pp
+            WHERE p.PublisherId = pp.PublisherId
+        ) AND NOT EXISTS(
+            SELECT ISBN
+            FROM UserBooksRead br
+            WHERE br.ISBN = b.ISBN
+        )
+        GROUP BY ISBN
+        ORDER BY Score DESC
+    );
+
+    SELECT * FROM PublisherRatings LIMIT 30;
 
 END //
 DELIMITER ;
