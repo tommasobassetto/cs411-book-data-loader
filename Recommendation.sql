@@ -140,7 +140,7 @@ DELIMITER //
 CREATE PROCEDURE RecommendFromAuthor (IN usr VARCHAR(30), IN minRating INT) 
 BEGIN
     DROP TABLE IF EXISTS UserBooksRead;
-    DROP TABLE IF EXISTS Authors;
+    DROP TABLE IF EXISTS Authors_Proc;
     DROP TABLE IF EXISTS AuthorRatings;
 
     -- List of all books the user read
@@ -155,11 +155,11 @@ BEGIN
     );
 
     -- Get all of the user's friends
-    CREATE TABLE Authors (
+    CREATE TABLE Authors_Proc (
         Author VARCHAR(255)
     );
 
-    INSERT INTO Authors (
+    INSERT INTO Authors_Proc (
         SELECT DISTINCT Author
         FROM Books b
         WHERE EXISTS (
@@ -182,7 +182,7 @@ BEGIN
         FROM (Books b NATURAL JOIN Ratings r NATURAL JOIN Publishers p)
         WHERE (r.Rating >= minRating) AND EXISTS(
             SELECT * 
-            FROM Authors a
+            FROM Authors_Proc a
             WHERE a.Author = b.Author
         ) AND NOT EXISTS(
             SELECT ISBN
