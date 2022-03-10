@@ -121,3 +121,11 @@ IGNORE 1 ROWS;
 ALTER TABLE Authors
 DROP COLUMN UNUSED1,
 DROP COLUMN UNUSED2;
+
+CREATE TABLE Friends (
+    WantsRecs VARCHAR(32),
+    GivesRecs VARCHAR(32),
+
+    FOREIGN KEY (WantsRecs) REFERENCES Users (Username),
+    FOREIGN KEY (GivesRecs) REFERENCES Users (Username)
+);

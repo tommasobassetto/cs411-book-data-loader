@@ -2,11 +2,12 @@ DROP PROCEDURE IF EXISTS RecommendFromSimilar;
 DROP PROCEDURE IF EXISTS RecommendFromFriends;
 DROP PROCEDURE IF EXISTS RecommendFromAuthor;
 DROP PROCEDURE IF EXISTS RecommendFromPublisher;
+DROP PROCEDURE IF EXISTS RecommendFromAll;
 
 -- Recommend books based on similar users.
 DELIMITER //
-CREATE PROCEDURE RecommendFromSimilar (IN usr VARCHAR(30), IN minRating INT, IN minSimilar INT) BEGIN
-    DROP TABLE IF EXISTS RateList;
+CREATE PROCEDURE RecommendFromSimilar (IN usr VARCHAR(32), IN minRating INT, IN minSimilar INT) BEGIN
+    DROP TABLE IF EXISTS SimilarRatings;
     DROP TABLE IF EXISTS GoodRated;
     DROP TABLE IF EXISTS SimilarUsers;
     DROP TABLE IF EXISTS RateListUnsorted;
@@ -53,14 +54,14 @@ CREATE PROCEDURE RecommendFromSimilar (IN usr VARCHAR(30), IN minRating INT, IN 
 
     -- Next, we need to add a similarity score to determine what books to recommend (sort)
     -- use sum(num common books) for every similar user that read that book
-    CREATE TABLE RateList (
+    CREATE TABLE SimilarRatings (
         ISBN CHAR(10) PRIMARY KEY,
         Title VARCHAR(4096),
         Author VARCHAR(255),
         PublisherName VARCHAR(8192),
         Score INT
     );
-    INSERT INTO RateList (
+    INSERT INTO SimilarRatings (
         SELECT ISBN, MIN(b.Title) AS Title, MIN(b.Author) AS Author, MIN(PublisherName) AS PublisherName, SUM(NumCommonBooks) AS Score
         FROM RateListUnsorted b NATURAL JOIN Ratings r NATURAL JOIN SimilarUsers u
         GROUP BY ISBN
@@ -68,7 +69,7 @@ CREATE PROCEDURE RecommendFromSimilar (IN usr VARCHAR(30), IN minRating INT, IN 
         LIMIT 50
     );
 
-    SELECT * FROM RateList LIMIT 30;
+    SELECT * FROM SimilarRatings LIMIT 30;
 
 END //
 DELIMITER ;
@@ -257,6 +258,71 @@ BEGIN
     );
 
     SELECT * FROM PublisherRatings LIMIT 30;
+
+END //
+DELIMITER ;
+
+-- Recommend from everything.
+DELIMITER //
+CREATE PROCEDURE RecommendFromAll(IN usr VARCHAR(255), IN minRating INT, IN minSimilar INT)
+BEGIN
+    DROP TABLE IF EXISTS MergedRatings;
+    DROP TABLE IF EXISTS CombinedRatings;
+
+    CALL RecommendFromSimilar(usr, minRating, minSimilar);
+    CALL RecommendFromAuthor(usr, minRating);
+    CALL RecommendFromFriends(usr, minRating);
+    CALL RecommendFromPublisher(usr, minRating);
+
+    CREATE TABLE MergedRatings (
+        ISBN CHAR(10) PRIMARY KEY,
+        Title VARCHAR(4096),
+        Author VARCHAR(255),
+        PublisherName VARCHAR(8192),
+        Score INT
+    );
+
+    INSERT INTO MergedRatings (
+        SELECT *
+        FROM SimilarRatings
+        LIMIT 50
+    );
+
+    INSERT INTO MergedRatings (
+        SELECT *
+        FROM FriendRatings
+        LIMIT 50
+    );
+
+    INSERT INTO MergedRatings (
+        SELECT *
+        FROM AuthorRatings
+        LIMIT 50
+    );
+
+    INSERT INTO MergedRatings (
+        SELECT *
+        FROM PublisherRatings
+        LIMIT 50
+    );
+
+    CREATE TABLE CombinedRatings (
+        ISBN CHAR(10) PRIMARY KEY,
+        Title VARCHAR(4096),
+        Author VARCHAR(255),
+        PublisherName VARCHAR(8192),
+        Score INT       
+    );
+
+    INSERT INTO CombinedRatings (
+        SELECT r.ISBN AS ISBN, MIN(r.Title) AS Title, MIN(r.Author) AS Author, MIN(r.PublisherName) AS PublisherName,
+        MIN(a.Popularity) AS Score
+        FROM MergedRatings r LEFT OUTER JOIN Authors a ON (r.Author = a.Name)
+        GROUP BY r.ISBN
+        ORDER BY Score
+    );
+
+    SELECT * FROM CombinedRatings LIMIT 50;
 
 END //
 DELIMITER ;
