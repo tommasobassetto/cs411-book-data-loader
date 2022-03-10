@@ -318,7 +318,7 @@ BEGIN
         SELECT r.ISBN AS ISBN, r.Title AS Title, r.Author AS Author, r.PublisherName AS PublisherName,
         a.Popularity AS Score
         FROM MergedRatings r LEFT OUTER JOIN Authors a ON (r.Author = a.Name)
-        ORDER BY Score
+        ORDER BY Score DESC
     );
 
     SELECT * FROM CombinedRatings LIMIT 50;
