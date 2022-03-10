@@ -282,25 +282,25 @@ BEGIN
         Score INT
     );
 
-    INSERT INTO MergedRatings (
+    INSERT IGNORE INTO MergedRatings (
         SELECT *
         FROM SimilarRatings
         LIMIT 50
     );
 
-    INSERT INTO MergedRatings (
+    INSERT IGNORE INTO MergedRatings (
         SELECT *
         FROM FriendRatings
         LIMIT 50
     );
 
-    INSERT INTO MergedRatings (
+    INSERT IGNORE INTO MergedRatings (
         SELECT *
         FROM AuthorRatings
         LIMIT 50
     );
 
-    INSERT INTO MergedRatings (
+    INSERT IGNORE INTO MergedRatings (
         SELECT *
         FROM PublisherRatings
         LIMIT 50
@@ -315,10 +315,9 @@ BEGIN
     );
 
     INSERT INTO CombinedRatings (
-        SELECT r.ISBN AS ISBN, MIN(r.Title) AS Title, MIN(r.Author) AS Author, MIN(r.PublisherName) AS PublisherName,
-        MIN(a.Popularity) AS Score
+        SELECT r.ISBN AS ISBN, r.Title AS Title, r.Author AS Author, r.PublisherName AS PublisherName,
+        a.Popularity AS Score
         FROM MergedRatings r LEFT OUTER JOIN Authors a ON (r.Author = a.Name)
-        GROUP BY r.ISBN
         ORDER BY Score
     );
 
