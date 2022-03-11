@@ -45,7 +45,7 @@ CREATE PROCEDURE RecommendFromSimilar (IN usr VARCHAR(32), IN minRating INT, IN 
         Author VARCHAR(255),
         PublisherName VARCHAR(8192)
     );
-    
+
     INSERT INTO RateListUnsorted (
         SELECT ISBN, MIN(b.Title) AS Title, MIN(b.Author) AS Author, MIN(PublisherName) AS PublisherName
         FROM (Books b NATURAL JOIN Ratings r NATURAL JOIN Publishers p)
@@ -69,8 +69,6 @@ CREATE PROCEDURE RecommendFromSimilar (IN usr VARCHAR(32), IN minRating INT, IN 
         ORDER BY Score DESC
         LIMIT 50
     );
-
-    SELECT * FROM SimilarRatings LIMIT 30;
 
 END //
 DELIMITER ;
@@ -131,8 +129,6 @@ BEGIN
         GROUP BY ISBN
         ORDER BY Score DESC
     );
-
-    SELECT * FROM FriendRatings LIMIT 30;
 
 END //
 DELIMITER ;
@@ -195,8 +191,6 @@ BEGIN
         ORDER BY Score DESC
     );
 
-    SELECT * FROM AuthorRatings LIMIT 30;
-
 END //
 DELIMITER ;
 
@@ -257,8 +251,6 @@ BEGIN
         GROUP BY ISBN
         ORDER BY Score DESC
     );
-
-    SELECT * FROM PublisherRatings LIMIT 30;
 
 END //
 DELIMITER ;
@@ -321,8 +313,6 @@ BEGIN
         FROM MergedRatings r LEFT OUTER JOIN Authors a ON (r.Author = a.Name)
         ORDER BY Score DESC
     );
-
-    SELECT * FROM CombinedRatings LIMIT 50;
 
 END //
 DELIMITER ;
