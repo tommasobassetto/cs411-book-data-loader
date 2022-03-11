@@ -45,6 +45,7 @@ CREATE PROCEDURE RecommendFromSimilar (IN usr VARCHAR(32), IN minRating INT, IN 
         Author VARCHAR(255),
         PublisherName VARCHAR(8192)
     );
+    
     INSERT INTO RateListUnsorted (
         SELECT ISBN, MIN(b.Title) AS Title, MIN(b.Author) AS Author, MIN(PublisherName) AS PublisherName
         FROM (Books b NATURAL JOIN Ratings r NATURAL JOIN Publishers p)
@@ -90,7 +91,7 @@ BEGIN
     INSERT INTO UserBooksRead (
         SELECT ISBN
         FROM Ratings
-        WHERE Username = usr
+        WHERE Username = usr AND Rating > minRating
     );
 
     -- Get all of the user's friends
@@ -152,7 +153,7 @@ BEGIN
     INSERT INTO UserBooksRead (
         SELECT ISBN
         FROM Ratings
-        WHERE Username = usr
+        WHERE Username = usr AND rating > minRating
     );
 
     -- Get all of the user's friends
@@ -215,7 +216,7 @@ BEGIN
     INSERT INTO UserBooksRead (
         SELECT ISBN
         FROM Ratings
-        WHERE Username = usr
+        WHERE Username = usr AND rating >= minRating
     );
 
     -- Get all of the user's friends
