@@ -54,7 +54,12 @@ BEGIN
     SET @curr_author = (SELECT Author FROM Books WHERE ISBN = NEW.ISBN);
     SET @curr_pop = (SELECT UserRatings FROM Authors WHERE Name = @curr_author);
 
-    UPDATE Authors SET UserRatings = (@curr_pop + NEW.Rating) WHERE Name=@curr_author;
+    SET @curr_ratings = (SELECT COUNT(*) FROM Ratings WHERE Username = NEW.Username);
+
+    -- Check that a user has at least 10 reviews before updating the database
+    IF (@curr_ratings >= 10) THEN
+        UPDATE Authors SET UserRatings = (@curr_pop + NEW.Rating) WHERE Name=@curr_author;
+    END IF;
 
 END //
 
@@ -64,18 +69,25 @@ DELIMITER //
 CREATE PROCEDURE UpdatePopularity ()
 BEGIN
     DECLARE AuthName VARCHAR(255) DEFAULT "";
+    DECLARE AuthPop INT DEFAULT 0;
     DECLARE AuthUserRating INT DEFAULT 0;
     DECLARE AuthBaseRating INT DEFAULT 0;
 
     DECLARE Done INT DEFAULT 0;
 
-    DECLARE cs CURSOR FOR (SELECT Name, UserRatings, BaseRatings FROM Authors);
+    DECLARE cs CURSOR FOR (SELECT Name, Popularity, UserRatings, BaseRatings FROM Authors);
     DECLARE CONTINUE HANDLER FOR NOT FOUND SET Done=1;
 
     OPEN cs;
     REPEAT
-        FETCH cs INTO AuthName, AuthUserRating, AuthBaseRating;
-        UPDATE Authors SET Popularity = AuthBaseRating + AuthUserRating WHERE Name = AuthName;
+        FETCH cs INTO AuthName, AuthPop, AuthUserRating, AuthBaseRating;
+
+        -- check that an author's rating doesn't go up too much
+        -- (from bot reviews)
+        IF (AuthUserRating + AuthBaseRating < 1.1 * AuthPop) THEN
+            UPDATE `Authors` SET `UserRatings` = AuthUserRating + AuthBaseRating 
+            WHERE `Name` = AuthName;
+        END IF;
 
         UNTIL Done
     END REPEAT;
