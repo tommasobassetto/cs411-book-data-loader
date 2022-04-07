@@ -13,6 +13,8 @@ DROP PROCEDURE IF EXISTS SetPopularity;
 DROP PROCEDURE IF EXISTS UpdatePopularity;
 DROP TRIGGER   IF EXISTS UpdateUserReviews;
 
+CREATE INDEX BookAuthorIndex ON Books (Author);
+
 DELIMITER //
 CREATE PROCEDURE SetPopularity ()
 BEGIN
@@ -24,16 +26,24 @@ BEGIN
     DECLARE cs CURSOR FOR (SELECT Name FROM Authors);
     DECLARE CONTINUE HANDLER FOR NOT FOUND SET Done=1;
 
+    DROP TABLE IF EXISTS AuthUserRatings;
+
+    CREATE TABLE AuthUserRatings (
+        UserScores INT,
+        Author VARCHAR(255) PRIMARY KEY
+    );
+
+    INSERT INTO AuthUserRatings (
+        SELECT SUM(r.Rating) AS UserScores, b.Author
+        FROM Books b NATURAL JOIN Ratings r
+        GROUP BY b.Author
+    );
+
     OPEN cs;
     REPEAT
         FETCH cs INTO AuthName;
 
-        SET AuthUserRating = (
-            SELECT SUM(Rating)
-            FROM Books b NATURAL JOIN Ratings r
-            WHERE b.Author = AuthName
-            GROUP BY b.Author
-        );
+        SET AuthUserRating = (SELECT UserScores FROM AuthUserRatings WHERE Author=AuthName);
 
         UPDATE `Authors` SET `UserRatings` = AuthUserRating WHERE `Name` = AuthName;
 
