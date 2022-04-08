@@ -13,7 +13,8 @@ DROP PROCEDURE IF EXISTS SetPopularity;
 DROP PROCEDURE IF EXISTS UpdatePopularity;
 DROP TRIGGER   IF EXISTS UpdateUserReviews;
 
-CREATE INDEX BookAuthorIndex ON Books (Author);
+-- This index was actually slower than no index (by almost 0.5 seconds in a 2s query, quite significant)
+-- CREATE INDEX BookAuthorIndex ON Books (Author);
 
 DELIMITER //
 CREATE PROCEDURE SetPopularity ()
